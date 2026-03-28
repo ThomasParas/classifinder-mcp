@@ -44,7 +44,7 @@ def _get_client():
     if not api_key:
         raise RuntimeError(
             "CLASSIFINDER_API_KEY environment variable is not set. "
-            "Get a free key at https://classifinder.tech"
+            "Get a free key at https://classifinder.ai"
         )
 
     from classifinder import ClassiFinder

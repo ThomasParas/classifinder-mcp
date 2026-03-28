@@ -10,7 +10,7 @@ pip install classifinder-mcp
 
 ## Setup
 
-Get a free API key at [classifinder.tech](https://classifinder.tech), then add to your agent config:
+Get a free API key at [classifinder.ai](https://classifinder.ai), then add to your agent config:
 
 ### Claude Code
 
@@ -72,7 +72,7 @@ Agent: "Clean this before sending to the model"
 
 ## Disclaimer
 
-ClassiFinder is a detection aid, not a guarantee. No scanner catches 100% of secrets in 100% of formats. See our [Terms of Service](https://classifinder.tech) for full details.
+ClassiFinder is a detection aid, not a guarantee. No scanner catches 100% of secrets in 100% of formats. See our [Terms of Service](https://classifinder.ai) for full details.
 
 ## License
 
