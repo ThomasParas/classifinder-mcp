@@ -28,7 +28,10 @@ from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP(
     "ClassiFinder",
-    instructions="Scan text for leaked secrets and credentials. Redact secrets before sending to LLMs.",
+    instructions=(
+        "Scan text for leaked secrets and credentials."
+        " Redact secrets before sending to LLMs."
+    ),
 )
 
 _client = None
