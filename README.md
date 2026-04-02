@@ -68,7 +68,7 @@ Agent: "Clean this before sending to the model"
 
 ## What It Detects
 
-71 secret types including AWS keys, Stripe keys, GitHub tokens, OpenAI/Anthropic/Cohere API keys, database connection strings, private keys, credit card numbers, and more.
+82 secret types including AWS keys, Stripe keys, GitHub tokens, OpenAI/Anthropic/Cohere API keys, database connection strings, private keys, credit card numbers, and more.
 
 ## Disclaimer
 
