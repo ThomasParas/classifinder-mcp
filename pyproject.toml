@@ -29,13 +29,33 @@ packages = ["src/classifinder_mcp"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
 [tool.ruff]
 target-version = "py310"
 line-length = 100
 src = ["src"]
 
 [tool.ruff.lint]
-select = ["F", "E", "W", "I", "UP", "B", "SIM", "RUF"]
+select = [
+    "F",    # Pyflakes
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "RUF",  # Ruff-specific rules
+    "A",    # flake8-builtins
+    "C4",   # flake8-comprehensions
+    "PIE",  # flake8-pie
+    "T20",  # flake8-print
+    "TCH",  # type-checking imports
+]
 
 [tool.ruff.lint.isort]
 known-first-party = ["classifinder_mcp"]

@@ -19,25 +19,31 @@ Agent config (Claude Code / Cursor):
     }
 """
 
+from __future__ import annotations
+
 import json
 import os
+from typing import TYPE_CHECKING
 
+from classifinder import ClassiFinderError
 from mcp.server.fastmcp import FastMCP
+
+if TYPE_CHECKING:
+    from classifinder import ClassiFinder
 
 # ── Server setup ─────────────────────────────────────────────────────────
 
 mcp = FastMCP(
     "ClassiFinder",
     instructions=(
-        "Scan text for leaked secrets and credentials."
-        " Redact secrets before sending to LLMs."
+        "Scan text for leaked secrets and credentials. Redact secrets before sending to LLMs."
     ),
 )
 
 _client = None
 
 
-def _get_client():
+def _get_client() -> ClassiFinder:
     """Lazy-initialize the ClassiFinder client."""
     global _client
     if _client is not None:
@@ -50,12 +56,14 @@ def _get_client():
             "Get a free key at https://classifinder.ai"
         )
 
-    from classifinder import ClassiFinder
-    _client = ClassiFinder(api_key=api_key)
+    from classifinder import ClassiFinder as _ClassiFinder
+
+    _client = _ClassiFinder(api_key=api_key)
     return _client
 
 
 # ── Tools ────────────────────────────────────────────────────────────────
+
 
 @mcp.tool()
 def classifinder_scan(text: str, min_confidence: float = 0.5) -> str:
@@ -78,29 +86,34 @@ def classifinder_scan(text: str, min_confidence: float = 0.5) -> str:
 
         findings = []
         for f in result.findings:
-            findings.append({
-                "type": f.type,
-                "type_name": f.type_name,
-                "severity": f.severity,
-                "confidence": f.confidence,
-                "value_preview": f.value_preview,
-                "recommendation": f.recommendation,
-            })
+            findings.append(
+                {
+                    "type": f.type,
+                    "type_name": f.type_name,
+                    "severity": f.severity,
+                    "confidence": f.confidence,
+                    "value_preview": f.value_preview,
+                    "recommendation": f.recommendation,
+                }
+            )
 
-        return json.dumps({
-            "findings_count": result.findings_count,
-            "summary": {
-                "critical": result.summary.critical,
-                "high": result.summary.high,
-                "medium": result.summary.medium,
-                "low": result.summary.low,
+        return json.dumps(
+            {
+                "findings_count": result.findings_count,
+                "summary": {
+                    "critical": result.summary.critical,
+                    "high": result.summary.high,
+                    "medium": result.summary.medium,
+                    "low": result.summary.low,
+                },
+                "findings": findings,
             },
-            "findings": findings,
-        }, indent=2)
+            indent=2,
+        )
 
     except RuntimeError as e:
         return f"Error: {e}"
-    except Exception as e:
+    except ClassiFinderError as e:
         return f"ClassiFinder API error: {e}"
 
 
@@ -128,26 +141,30 @@ def classifinder_redact(text: str, redaction_style: str = "label") -> str:
         if result.findings_count == 0:
             return text  # No secrets found, return original
 
-        return json.dumps({
-            "redacted_text": result.redacted_text,
-            "findings_count": result.findings_count,
-            "summary": {
-                "critical": result.summary.critical,
-                "high": result.summary.high,
-                "medium": result.summary.medium,
-                "low": result.summary.low,
+        return json.dumps(
+            {
+                "redacted_text": result.redacted_text,
+                "findings_count": result.findings_count,
+                "summary": {
+                    "critical": result.summary.critical,
+                    "high": result.summary.high,
+                    "medium": result.summary.medium,
+                    "low": result.summary.low,
+                },
             },
-        }, indent=2)
+            indent=2,
+        )
 
     except RuntimeError as e:
         return f"Error: {e}"
-    except Exception as e:
+    except ClassiFinderError as e:
         return f"ClassiFinder API error: {e}"
 
 
 # ── Entry point ──────────────────────────────────────────────────────────
 
-def main():
+
+def main() -> None:
     """Run the MCP server over stdio."""
     mcp.run(transport="stdio")
 
