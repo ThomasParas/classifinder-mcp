@@ -1,6 +1,6 @@
 {
   "name": "ClassiFinder MCP",
-  "description": "Scan text for leaked secrets and redact credentials before they reach your LLM. Detects 50 secret types including AWS keys, Stripe keys, GitHub tokens, OpenAI/Anthropic API keys, database connection strings, and private keys.",
+  "description": "Scan text for leaked secrets and redact credentials before they reach your LLM. Detects 71 secret types including AWS keys, Stripe keys, GitHub tokens, OpenAI/Anthropic API keys, database connection strings, and private keys.",
   "keywords": ["security", "secrets", "scanning", "redaction", "credentials", "api-keys", "mcp", "llm-safety"],
   "mcpServers": {
     "classifinder": {
