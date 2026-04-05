@@ -2,4 +2,7 @@ dist/
 __pycache__/
 *.egg-info/
 .venv/
+.env
+.env.*
+.gstack/
 CLAUDE.md
