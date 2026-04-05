@@ -70,6 +70,10 @@ Agent: "Clean this before sending to the model"
 
 88 secret types including AWS keys, Stripe keys, GitHub tokens, OpenAI/Anthropic/Cohere API keys, database connection strings, private keys, credit card numbers, and more.
 
+## See Also
+
+For CLI scanning instead of MCP, see [cfsniff](https://github.com/ThomasParas/cfsniff) — a command-line tool that scans files, shell history, and configs for secrets (`pipx install cfsniff`).
+
 ## Disclaimer
 
 ClassiFinder is a detection aid, not a guarantee. No scanner catches 100% of secrets in 100% of formats. See our [Terms of Service](https://classifinder.ai) for full details.
