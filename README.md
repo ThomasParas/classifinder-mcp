@@ -72,7 +72,7 @@ Agent: "Clean this before sending to the model"
 
 ## See Also
 
-For CLI scanning instead of MCP, see [cfsniff](https://github.com/ThomasParas/cfsniff) — a command-line tool that scans files, shell history, and configs for secrets (`pipx install cfsniff`).
+For CLI scanning instead of MCP, see [cfsniff](https://github.com/classifinder/cfsniff) — a command-line tool that scans files, shell history, and configs for secrets (`pipx install cfsniff`).
 
 ## Disclaimer
 
