@@ -5,7 +5,7 @@ Thanks for your interest in contributing! This is the [MCP](https://modelcontext
 ## Getting Started
 
 ```bash
-git clone https://github.com/classifinder/classifinder-mcp.git
+git clone https://github.com/ClassiFinder/classifinder-mcp.git
 cd classifinder-mcp
 pip install -e .
 ```
@@ -16,7 +16,7 @@ Requires Python 3.10+. You'll need a ClassiFinder API key (free at [classifinder
 
 ### Bug Reports
 
-[Open an issue](https://github.com/classifinder/classifinder-mcp/issues) with:
+[Open an issue](https://github.com/ClassiFinder/classifinder-mcp/issues) with:
 
 - MCP server version (`pip show classifinder-mcp`)
 - Which AI agent you're using (Claude Code, Cursor, etc.)
