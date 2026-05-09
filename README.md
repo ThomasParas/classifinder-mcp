@@ -68,7 +68,12 @@ Agent: "Clean this before sending to the model"
 
 ## What It Detects
 
-106 secret types including AWS keys, Stripe keys, GitHub tokens, OpenAI/Anthropic/Cohere API keys, database connection strings, private keys, credit card numbers, and more.
+**116 detection patterns:**
+
+- **106 secret types** across 7 categories: AWS, GCP, Azure, Vercel, Fly.io, Doppler, HashiCorp Vault and other cloud/infra keys; Stripe, PayPal, Shopify, credit cards (Luhn-validated); GitHub, GitLab, Bitbucket, npm, PyPI, RubyGems and other CI/CD tokens; Slack, Twilio, SendGrid, Datadog, Sentry, PagerDuty, Notion, Linear and other SaaS keys; PostgreSQL/MySQL/MongoDB/Redis/Supabase connection strings; SSH/PEM private keys; JWTs; and 18 AI/LLM provider keys (OpenAI, Anthropic user + admin, Cohere, xAI, Mistral, DeepSeek, HuggingFace, Replicate, Groq, ElevenLabs, AssemblyAI, Deepgram, LangFuse, AWS Bedrock long + short-lived, Vercel AI Gateway, Weights & Biases).
+- **10 prompt-injection markers** for LLM input scanning — **4 phase-1 high-precision** (chat-template role-hijack tokens like `<|im_start|>` and `[INST]`, tool-call tag injection, known jailbreak personas like DAN/AIM, Unicode bidirectional override / Trojan Source) + **6 phase-2 medium-precision** (zero-width Unicode smuggling, fake "Assistant:" turns, system-prompt extraction, instruction override like "ignore previous instructions", persona override (context-gated), encoded-payload markers). Catches 20.6% of in-the-wild jailbreaks (validated against the `verazuo/jailbreak_llms` corpus). Severity caps at `high` — these are attack markers, not credentials.
+
+One scan returns both secret findings and injection markers — no second vendor, no separate pipeline.
 
 ## See Also
 
