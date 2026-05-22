@@ -23,10 +23,13 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from typing import TYPE_CHECKING
 
 from classifinder import ClassiFinderError
 from mcp.server.fastmcp import FastMCP
+
+from classifinder_mcp.audit import audit_tool_call
 
 if TYPE_CHECKING:
     from classifinder import ClassiFinder
@@ -77,11 +80,18 @@ def classifinder_scan(text: str, min_confidence: float = 0.5) -> str:
         text: The text to scan for secrets.
         min_confidence: Minimum confidence threshold (0.0-1.0). Default 0.5.
     """
+    t0 = time.perf_counter()
     try:
         client = _get_client()
         result = client.scan(text=text, min_confidence=min_confidence)
 
         if result.findings_count == 0:
+            audit_tool_call(
+                tool="classifinder_scan",
+                input_byte_count=len(text.encode("utf-8")),
+                finding_count=0,
+                latency_ms=(time.perf_counter() - t0) * 1000,
+            )
             return "No secrets detected."
 
         findings = []
@@ -96,6 +106,13 @@ def classifinder_scan(text: str, min_confidence: float = 0.5) -> str:
                     "recommendation": f.recommendation,
                 }
             )
+
+        audit_tool_call(
+            tool="classifinder_scan",
+            input_byte_count=len(text.encode("utf-8")),
+            finding_count=result.findings_count,
+            latency_ms=(time.perf_counter() - t0) * 1000,
+        )
 
         return json.dumps(
             {
@@ -131,11 +148,19 @@ def classifinder_redact(text: str, redaction_style: str = "label") -> str:
             "mask"  - AKIA**************
             "hash"  - [REDACTED:sha256:a1b2c3d4]
     """
+    t0 = time.perf_counter()
     try:
         client = _get_client()
         result = client.redact(
             text=text,
             redaction_style=redaction_style,
+        )
+
+        audit_tool_call(
+            tool="classifinder_redact",
+            input_byte_count=len(text.encode("utf-8")),
+            finding_count=result.findings_count,
+            latency_ms=(time.perf_counter() - t0) * 1000,
         )
 
         if result.findings_count == 0:

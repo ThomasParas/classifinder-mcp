@@ -174,3 +174,103 @@ def test_main_calls_mcp_run():
     with patch.object(mcp, "run") as mock_run:
         main()
     mock_run.assert_called_once_with(transport="stdio")
+
+
+# ── Audit integration ──────────────────────────────────────────────────────
+
+
+def test_scan_writes_audit_line(monkeypatch, tmp_path):
+    """A successful scan call writes one audit line with metadata."""
+    audit_path = tmp_path / "audit.jsonl"
+    monkeypatch.setenv("CLASSIFINDER_MCP_AUDIT_PATH", str(audit_path))
+    monkeypatch.delenv("CLASSIFINDER_MCP_AUDIT", raising=False)
+
+    mock_result = MagicMock()
+    mock_result.findings_count = 2
+    mock_result.findings = []
+    mock_result.summary.critical = 0
+    mock_result.summary.high = 0
+    mock_result.summary.medium = 0
+    mock_result.summary.low = 0
+    mock_client = MagicMock()
+    mock_client.scan.return_value = mock_result
+
+    text = "API_KEY=sk_test_abc123"
+    with patch("classifinder_mcp.server._get_client", return_value=mock_client):
+        classifinder_scan(text)
+
+    line = audit_path.read_text().strip()
+    record = json.loads(line)
+    assert record["tool"] == "classifinder_scan"
+    assert record["input_byte_count"] == len(text.encode())
+    assert record["finding_count"] == 2
+    assert isinstance(record["latency_ms"], float)
+    # Critical: no input text in the log
+    assert "sk_test_abc123" not in audit_path.read_text()
+
+
+def test_redact_writes_audit_line(monkeypatch, tmp_path):
+    """A successful redact call writes one audit line."""
+    audit_path = tmp_path / "audit.jsonl"
+    monkeypatch.setenv("CLASSIFINDER_MCP_AUDIT_PATH", str(audit_path))
+    monkeypatch.delenv("CLASSIFINDER_MCP_AUDIT", raising=False)
+
+    mock_result = MagicMock()
+    mock_result.findings_count = 1
+    mock_result.redacted_text = "[REDACTED]"
+    mock_result.summary.critical = 1
+    mock_result.summary.high = 0
+    mock_result.summary.medium = 0
+    mock_result.summary.low = 0
+    mock_client = MagicMock()
+    mock_client.redact.return_value = mock_result
+
+    text = "AWS_KEY=AKIAEXAMPLE"
+    with patch("classifinder_mcp.server._get_client", return_value=mock_client):
+        classifinder_redact(text)
+
+    line = audit_path.read_text().strip()
+    record = json.loads(line)
+    assert record["tool"] == "classifinder_redact"
+    assert record["input_byte_count"] == len(text.encode())
+    assert record["finding_count"] == 1
+    # Critical: redacted text + input text both absent from log
+    log_content = audit_path.read_text()
+    assert "AKIAEXAMPLE" not in log_content
+    assert "REDACTED" not in log_content
+
+
+def test_audit_disabled_skips_write(monkeypatch, tmp_path):
+    """CLASSIFINDER_MCP_AUDIT=0 → no audit line on tool call."""
+    audit_path = tmp_path / "audit.jsonl"
+    monkeypatch.setenv("CLASSIFINDER_MCP_AUDIT_PATH", str(audit_path))
+    monkeypatch.setenv("CLASSIFINDER_MCP_AUDIT", "0")
+
+    mock_result = MagicMock()
+    mock_result.findings_count = 0
+    mock_client = MagicMock()
+    mock_client.scan.return_value = mock_result
+
+    with patch("classifinder_mcp.server._get_client", return_value=mock_client):
+        classifinder_scan("test")
+
+    assert not audit_path.exists()
+
+
+def test_audit_skipped_on_error_path(monkeypatch, tmp_path):
+    """When the SDK raises, the tool returns an error string AND no audit
+    line is written — we don't have meaningful metadata to log on the error path."""
+    from classifinder import ClassiFinderError
+
+    audit_path = tmp_path / "audit.jsonl"
+    monkeypatch.setenv("CLASSIFINDER_MCP_AUDIT_PATH", str(audit_path))
+    monkeypatch.delenv("CLASSIFINDER_MCP_AUDIT", raising=False)
+
+    mock_client = MagicMock()
+    mock_client.scan.side_effect = ClassiFinderError("rate limited", status_code=429)
+
+    with patch("classifinder_mcp.server._get_client", return_value=mock_client):
+        result = classifinder_scan("test")
+
+    assert "ClassiFinder API error" in result
+    assert not audit_path.exists()
