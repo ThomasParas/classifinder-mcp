@@ -67,9 +67,9 @@ jobs:
       name: pypi
       url: https://pypi.org/p/classifinder-mcp
     permissions:
-      id-token: write       # OIDC trusted publishing
+      id-token: write       # OIDC trusted publishing + sigstore signing
       attestations: write   # PEP 740 build attestations
-      contents: read
+      contents: write       # gh release create / upload (sigstore bundles)
     steps:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -79,3 +79,29 @@ jobs:
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
         # attestations: true is the default in v1.11+
+
+      - name: Sign sdist + wheel via Sigstore
+        uses: sigstore/gh-action-sigstore-python@f514d46b907ebcd5bedc05145c03b69c1edd8b46 # v3.0.1
+        with:
+          inputs: ./dist/*.tar.gz ./dist/*.whl
+
+      - name: Attach signatures to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Create the GitHub Release if it doesn't exist, then upload the
+          # sdist + wheel + their sigstore bundles. PyPI attestations live on
+          # PyPI; these Release assets give consumers a second, independent
+          # verification path via `sigstore-python verify`.
+          # TAG_NAME comes from github.ref_name and is constrained by the
+          # workflow trigger (on: push: tags: ["v*"]) — only v-prefixed tags
+          # reach this code path. Quoted "$TAG_NAME" for defense in depth.
+          gh release view "$TAG_NAME" --repo "$REPO" >/dev/null 2>&1 \
+            || gh release create "$TAG_NAME" --repo "$REPO" \
+                 --title "$TAG_NAME" --notes "Signed sdist + wheel attached."
+          gh release upload "$TAG_NAME" --repo "$REPO" --clobber \
+            ./dist/*.tar.gz \
+            ./dist/*.whl \
+            ./dist/*.sigstore.json

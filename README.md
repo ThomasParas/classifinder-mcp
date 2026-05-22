@@ -75,6 +75,117 @@ Agent: "Clean this before sending to the model"
 
 One scan returns both secret findings and injection markers — no second vendor, no separate pipeline.
 
+## Hardening — Sandbox Profiles
+
+The MCP server is intentionally minimal: ~180 lines, two read-only tools, a single egress destination (`api.classifinder.ai:443`), and the API key as the only secret in scope. That makes it cheap to run under a sandbox. Three documented profiles:
+
+### Docker
+
+```bash
+docker run --rm -i \
+  --read-only \
+  --tmpfs /tmp \
+  -v ~/.classifinder:/root/.classifinder \
+  -e CLASSIFINDER_API_KEY \
+  python:3.12-slim sh -c "pip install -q classifinder-mcp && classifinder-mcp"
+```
+
+- `--read-only` — container filesystem is read-only
+- `--tmpfs /tmp` — writable scratch space for pip / Python
+- `-v ~/.classifinder:/root/.classifinder` — only persistent mount, used for the audit log
+- `-e CLASSIFINDER_API_KEY` — key passed via env, never written to disk
+- `-i` — keeps stdin attached (MCP transport is stdio)
+
+For a faster invocation in production, build a thin image with `classifinder-mcp` pre-installed.
+
+### Firejail (Linux)
+
+```bash
+firejail \
+  --noroot \
+  --caps.drop=all \
+  --seccomp \
+  --private-tmp \
+  --whitelist=~/.classifinder \
+  --read-only=~ \
+  --read-write=~/.classifinder \
+  classifinder-mcp
+```
+
+- Drops all capabilities + applies a default seccomp filter
+- Filesystem: home is read-only, only `~/.classifinder/` writable
+- Process runs without root privilege escalation
+- Network egress remains open (required for `api.classifinder.ai`) — pair with host-level egress filtering (`ufw`, `iptables`, or `nftables`) if you want network restriction
+
+### Bubblewrap (Linux)
+
+```bash
+bwrap \
+  --ro-bind / / \
+  --bind ~/.classifinder ~/.classifinder \
+  --proc /proc --dev /dev --tmpfs /tmp \
+  --unshare-pid --unshare-uts --new-session --die-with-parent \
+  --setenv CLASSIFINDER_API_KEY "$CLASSIFINDER_API_KEY" \
+  classifinder-mcp
+```
+
+- Read-only bind mount of `/`; writable bind only for `~/.classifinder/`
+- Fresh PID + UTS namespaces; new session
+- `--die-with-parent` ensures the sandbox tears down if the host process exits
+- API key passed via setenv, no file mount needed
+
+### Verification
+
+These profiles are documented starting points. None are exercised in this repo's CI — they're correctness-by-construction (read-only bind mounts, dropped caps, single-purpose tmpfs) rather than test-validated. If you run a sandbox in production and want me to roll a verified profile into a future release, open an issue with the exact invocation you're using.
+
+## Audit Log
+
+The MCP server appends one JSONL line per tool call to a local audit file. Metadata only — the audit log **never** contains your input text or any detected secret values.
+
+**Default path:** `~/.classifinder/mcp-audit.log`
+
+**Fields per line:**
+
+```json
+{
+  "timestamp": "2026-05-22T15:30:42.123456Z",
+  "tool": "classifinder_scan",
+  "input_byte_count": 142,
+  "finding_count": 1,
+  "latency_ms": 87.4
+}
+```
+
+**Configuration (env vars):**
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `CLASSIFINDER_MCP_AUDIT` | `1` (on) | Set to `0` to disable logging entirely |
+| `CLASSIFINDER_MCP_AUDIT_PATH` | `~/.classifinder/mcp-audit.log` | Override the log path |
+
+The audit log is observability for your own use — useful for compliance (proving the MCP server ran), debugging (correlating latency spikes), and forensic review (which tool ran when). Write failures are silent; the tool call always succeeds even if the audit cannot be written.
+
+## Verifying a Release
+
+Every published release is signed twice:
+
+1. **PyPI attestations (PEP 740)** — minted by PyPI from this repo's OIDC identity during publish. Verified automatically by `pip` when installing from PyPI; you don't need to do anything.
+2. **Sigstore bundles** — published as GitHub Release assets (`*.sigstore.json` next to the sdist + wheel). Verify with `sigstore-python`:
+
+```bash
+pip install sigstore
+gh release download v0.1.4 --repo ClassiFinder/classifinder-mcp \
+  --pattern '*.whl' --pattern '*.sigstore.json'
+
+sigstore verify identity \
+  --bundle classifinder_mcp-0.1.4-py3-none-any.whl.sigstore.json \
+  --cert-identity 'https://github.com/ClassiFinder/classifinder-mcp/.github/workflows/release.yml@refs/tags/v0.1.4' \
+  --cert-oidc-issuer 'https://token.actions.githubusercontent.com' \
+  classifinder_mcp-0.1.4-py3-none-any.whl
+```
+
+The signing identity binds the artifact to this repo's `release.yml` workflow at a specific tag — an attacker can't forge a valid bundle without compromising GitHub's OIDC token issuance.
+
 ## See Also
 
 For CLI scanning instead of MCP, see [cfsniff](https://github.com/ClassiFinder/cfsniff) — a command-line tool that scans files, shell history, and configs for secrets (`pipx install cfsniff`).
